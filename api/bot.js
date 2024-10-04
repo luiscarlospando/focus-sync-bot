@@ -11,7 +11,12 @@ module.exports = async (req, res) => {
 
     // Ensure the bot is logged in before proceeding
     if (!loggedIn) {
-        await loginToDiscord();
+        try {
+            await loginToDiscord();
+        } catch (error) {
+            console.error("Failed to log in to Discord:", error);
+            return res.status(500).send("Failed to log in to Discord");
+        }
     }
 
     // Proceed to update the bot status if it has changed
@@ -64,7 +69,21 @@ async function loginToDiscord() {
         await client.login(process.env.DISCORD_BOT_TOKEN);
         loggedIn = true; // Mark as logged in
     } catch (error) {
-        console.error("Bot failed to log in:", error);
-        throw new Error("Failed to log in");
+        if (error.code === "ECONNRESET") {
+            console.error("Connection reset, retrying login...");
+            setTimeout(loginToDiscord, 5000); // Retry after 5 seconds
+        } else {
+            throw error; // Throw any other errors
+        }
     }
 }
+
+// Handle uncaught exceptions to avoid crashing
+process.on("uncaughtException", (error) => {
+    if (error.code === "ECONNRESET") {
+        console.error("ECONNRESET detected, continuing...");
+    } else {
+        console.error("Uncaught exception:", error);
+        process.exit(1); // Exit the process on other errors
+    }
+});
