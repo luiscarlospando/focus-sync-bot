@@ -9,10 +9,12 @@ let currentStatus = "online"; // Tracks the bot's current status
 module.exports = async (req, res) => {
     const newStatus = req.query.status || "online"; // Default to 'online' if no status provided
 
+    // Ensure the bot is logged in before proceeding
     if (!loggedIn) {
-        await loginToDiscord(); // Log in the bot once if it's not logged in yet
+        await loginToDiscord();
     }
 
+    // Proceed to update the bot status if it has changed
     if (newStatus !== currentStatus) {
         try {
             await updateBotStatus(newStatus);
@@ -40,10 +42,15 @@ async function updateBotStatus(status) {
         activityMessage = "Invisible";
     }
 
-    await client.user.setPresence({
-        status: status,
-        activities: [{ name: activityMessage }],
-    });
+    // Ensure client.user exists (i.e., the bot is logged in and ready)
+    if (client.user) {
+        await client.user.setPresence({
+            status: status,
+            activities: [{ name: activityMessage }],
+        });
+    } else {
+        throw new Error("Bot is not ready");
+    }
 }
 
 // Login to Discord once
@@ -53,6 +60,11 @@ async function loginToDiscord() {
     });
 
     // Use the bot token from environment variables
-    await client.login(process.env.DISCORD_BOT_TOKEN);
-    loggedIn = true; // Mark as logged in
+    try {
+        await client.login(process.env.DISCORD_BOT_TOKEN);
+        loggedIn = true; // Mark as logged in
+    } catch (error) {
+        console.error("Bot failed to log in:", error);
+        throw new Error("Failed to log in");
+    }
 }
