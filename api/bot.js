@@ -2,12 +2,16 @@ require("dotenv").config();
 const { Client, GatewayIntentBits } = require("discord.js");
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-
+let loggedIn = false; // Track whether the bot is logged in
 let currentStatus = "online"; // Tracks the bot's current status
 
 // Vercel Serverless Function Handler
 module.exports = async (req, res) => {
     const newStatus = req.query.status || "online"; // Default to 'online' if no status provided
+
+    if (!loggedIn) {
+        await loginToDiscord(); // Log in the bot once if it's not logged in yet
+    }
 
     if (newStatus !== currentStatus) {
         try {
@@ -42,10 +46,13 @@ async function updateBotStatus(status) {
     });
 }
 
-// Login to Discord with bot token
-client.once("ready", () => {
-    console.log(`Logged in as ${client.user.tag}`);
-});
+// Login to Discord once
+async function loginToDiscord() {
+    client.once("ready", () => {
+        console.log(`Logged in as ${client.user.tag}`);
+    });
 
-// Use the bot token from environment variables
-client.login(process.env.DISCORD_BOT_TOKEN);
+    // Use the bot token from environment variables
+    await client.login(process.env.DISCORD_BOT_TOKEN);
+    loggedIn = true; // Mark as logged in
+}
